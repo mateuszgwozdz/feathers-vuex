@@ -86,3 +86,53 @@ export default {
 ```
 
 Note that if you customize the auth plugin's `namespace` then the `auth/` prefix in the above example would change to the provided namespace.
+
+## Automatic login with stored token
+
+After a user logs in, their auth token will be saved in either localStorage or as a cookie, depending on your settings. But when the page refreshes or reloads, application memory is cleared and the user session is not available anymore. In this section we will grab the localStorage or cookie and automatically log the user back in, before the page renders.
+
+Create a new file in `~/plugins/authInit.js`. This plugin will authenticate the user automatically for us. 
+
+```
+// ~/plugins/authInit.js
+// a) LOCAL STORAGE OPTION
+// see if a token is available in localstorage
+const storedToken = typeof localStorage['feathers-jwt']
+
+// b) COOKIE OPTION
+// see if a token is available in localstorage or cookie
+/*
+import { CookieStorage } from 'cookie-storage'
+
+const cookieStorage = new CookieStorage()
+const storedToken = cookieStorage.getItem('feathers-jwt')
+*/
+
+// see if token is available in URL - this is used when redirecting
+// from oAuth strategies from the api
+const hashTokenAvailable = window.location.hash.indexOf('access_token' > -1)
+
+export default async (context) => {
+  // if token is available authenticate the user
+  if (
+    (!context.app.store.state.auth.user && storedToken) ||
+    hashTokenAvailable
+  ) {
+    await context.app.store
+      .dispatch('auth/authenticate')
+      .then(() => {})
+      .catch((e) => {
+        console.error(e)
+      })
+  }
+}
+```
+
+Activate the plugin in `nuxt.config.js`
+
+```
+  plugins: [
+    { src: '~/plugins/authInit.js', ssr: false }
+  ],
+```
+Now when you refresh the page, you will be authenticated before page is rendered. 
